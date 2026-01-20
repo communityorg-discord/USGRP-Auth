@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logAudit } from '@/lib/db';
 
 // API key for bot authentication
-const BOT_API_KEY = process.env.BOT_API_KEY || 'usgrp-bot-api-key-change-in-production';
+const BOT_API_KEY = 'usgrp-admin-2026-secure-key-x7k9m2p4';
 
 export async function POST(request: NextRequest) {
     try {
