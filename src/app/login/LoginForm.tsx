@@ -10,12 +10,11 @@ export default function LoginForm() {
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [rememberMe, setRememberMe] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [checkingSession, setCheckingSession] = useState(true);
 
-    // Check if already logged in
     useEffect(() => {
         async function checkSession() {
             try {
@@ -23,7 +22,6 @@ export default function LoginForm() {
                 const data = await res.json();
 
                 if (data.authenticated) {
-                    // Already logged in, redirect
                     if (returnUrl) {
                         window.location.href = `${returnUrl}?token=${encodeURIComponent(data.token || '')}`;
                     } else {
@@ -49,18 +47,13 @@ export default function LoginForm() {
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email,
-                    password,
-                    rememberMe,
-                    returnUrl,
-                }),
+                body: JSON.stringify({ email, password, returnUrl }),
             });
 
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || 'Login failed');
+                setError(data.error || 'Authentication failed');
                 return;
             }
 
@@ -69,9 +62,7 @@ export default function LoginForm() {
                 return;
             }
 
-            // Successful login
             if (returnUrl) {
-                // SSO redirect - include token in callback
                 const callbackUrl = new URL(returnUrl);
                 callbackUrl.pathname = '/api/auth/callback';
                 callbackUrl.searchParams.set('token', data.token);
@@ -81,7 +72,7 @@ export default function LoginForm() {
             }
 
         } catch (e) {
-            setError('Login failed. Please try again.');
+            setError('Connection error. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -89,96 +80,127 @@ export default function LoginForm() {
 
     if (checkingSession) {
         return (
-            <div className="login-container">
-                <div className="spinner" style={{ width: '2rem', height: '2rem' }} />
+            <div className="sso-container">
+                <div className="sso-loading">
+                    <div className="sso-spinner"></div>
+                    <p>Checking session...</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="login-container">
-            <div className="card login-card">
-                <div className="login-header">
-                    <div className="login-logo">USGRP</div>
-                    <p className="login-subtitle">
-                        {returnUrl
-                            ? `Sign in to continue to ${new URL(returnUrl).hostname}`
-                            : 'Central Authentication'
-                        }
-                    </p>
+        <div className="sso-container">
+            <div className="sso-card">
+                {/* Logo & Branding */}
+                <div className="sso-header">
+                    <div className="sso-logo">
+                        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="40" height="40" rx="8" fill="#3b82f6" />
+                            <path d="M12 20L18 26L28 14" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    </div>
+                    <h1 className="sso-title">USGRP</h1>
+                    <p className="sso-subtitle">Identity Provider</p>
                 </div>
 
+                {/* Sign In Text */}
+                <div className="sso-form-header">
+                    <h2>Sign in</h2>
+                    {returnUrl && (
+                        <p className="sso-return-hint">
+                            to continue to <strong>{new URL(returnUrl).hostname}</strong>
+                        </p>
+                    )}
+                </div>
+
+                {/* Error Message */}
                 {error && (
-                    <div className="error-message" style={{ marginBottom: '1.25rem' }}>
-                        {error}
+                    <div className="sso-error">
+                        <svg viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <span>{error}</span>
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit}>
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="email">
-                            Email Address
-                        </label>
+                {/* Login Form */}
+                <form onSubmit={handleSubmit} className="sso-form">
+                    <div className="sso-field">
+                        <label htmlFor="email">Email address</label>
                         <input
                             id="email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="you@usgrp.xyz"
+                            placeholder="name@usgrp.xyz"
                             required
                             autoComplete="email"
                             autoFocus
                         />
                     </div>
 
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="password">
-                            Password
-                        </label>
-                        <input
-                            id="password"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Enter your password"
-                            required
-                            autoComplete="current-password"
-                        />
-                    </div>
-
-                    <div className="form-footer">
-                        <label className="checkbox-label">
+                    <div className="sso-field">
+                        <label htmlFor="password">Password</label>
+                        <div className="sso-password-wrapper">
                             <input
-                                type="checkbox"
-                                checked={rememberMe}
-                                onChange={(e) => setRememberMe(e.target.checked)}
+                                id="password"
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Enter your password"
+                                required
+                                autoComplete="current-password"
                             />
-                            <span>Remember me</span>
-                        </label>
-                        <a href="/forgot-password">Forgot password?</a>
+                            <button
+                                type="button"
+                                className="sso-password-toggle"
+                                onClick={() => setShowPassword(!showPassword)}
+                                tabIndex={-1}
+                            >
+                                {showPassword ? (
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
+                                        <line x1="1" y1="1" x2="23" y2="23" />
+                                    </svg>
+                                ) : (
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                        <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     <button
                         type="submit"
-                        className="login-button"
-                        disabled={loading}
+                        className="sso-submit"
+                        disabled={loading || !email || !password}
                     >
-                        {loading && <span className="spinner" />}
-                        {loading ? 'Signing in...' : 'Sign in'}
+                        {loading ? (
+                            <>
+                                <div className="sso-spinner-small"></div>
+                                Signing in...
+                            </>
+                        ) : (
+                            'Continue'
+                        )}
                     </button>
                 </form>
 
-                <div style={{
-                    marginTop: '1.5rem',
-                    paddingTop: '1.5rem',
-                    borderTop: '1px solid var(--border)',
-                    textAlign: 'center',
-                    fontSize: '0.875rem',
-                    color: 'var(--muted)'
-                }}>
-                    Don't have an account?{' '}
-                    <a href="/register">Contact administrator</a>
+                {/* Footer Links */}
+                <div className="sso-footer">
+                    <a href="/forgot-password">Forgot password?</a>
                 </div>
+            </div>
+
+            {/* Security Footer */}
+            <div className="sso-security">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                </svg>
+                <span>Secured by USGRP Auth</span>
             </div>
         </div>
     );

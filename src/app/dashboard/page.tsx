@@ -30,7 +30,6 @@ export default function DashboardPage() {
     const [user, setUser] = useState<any>(null);
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
 
     useEffect(() => {
         async function checkAuth() {
@@ -45,7 +44,6 @@ export default function DashboardPage() {
 
                 setUser(data.user);
 
-                // Load users if admin
                 if (data.user.authorityLevel >= 3) {
                     const usersRes = await fetch('/api/users');
                     if (usersRes.ok) {
@@ -72,99 +70,64 @@ export default function DashboardPage() {
 
     if (loading) {
         return (
-            <div className="login-container">
-                <div className="spinner" style={{ width: '2rem', height: '2rem' }} />
+            <div className="sso-container">
+                <div className="sso-loading">
+                    <div className="sso-spinner"></div>
+                    <p>Loading...</p>
+                </div>
             </div>
         );
     }
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--background)' }}>
+        <div className="dashboard">
             {/* Header */}
-            <header style={{
-                background: 'var(--card)',
-                borderBottom: '1px solid var(--border)',
-                padding: '1rem 2rem',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span style={{
-                        fontSize: '1.5rem',
-                        fontWeight: '700',
-                        background: 'linear-gradient(135deg, #2563eb, #06b6d4)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                    }}>
-                        USGRP Auth
-                    </span>
-                    <span className="badge badge-primary">
-                        {AUTHORITY_NAMES[user?.authorityLevel] || 'User'}
-                    </span>
+            <header className="dashboard-header">
+                <div className="dashboard-brand">
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect width="40" height="40" rx="8" fill="#3b82f6" />
+                        <path d="M12 20L18 26L28 14" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <h1>USGRP Auth</h1>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span style={{ color: 'var(--muted)' }}>{user?.email}</span>
-                    <button
-                        onClick={handleLogout}
-                        style={{
-                            background: 'var(--secondary)',
-                            padding: '0.5rem 1rem',
-                            fontSize: '0.875rem'
-                        }}
-                    >
+                <div className="dashboard-user">
+                    <div className="dashboard-user-info">
+                        <div className="dashboard-user-name">{user?.displayName}</div>
+                        <div className="dashboard-user-email">{user?.email}</div>
+                    </div>
+                    <button onClick={handleLogout} className="dashboard-logout">
                         Sign out
                     </button>
                 </div>
             </header>
 
-            {/* Main Content */}
-            <main style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-                <h1 style={{
-                    fontSize: '1.5rem',
-                    fontWeight: '600',
-                    marginBottom: '1.5rem'
-                }}>
+            {/* Content */}
+            <main className="dashboard-content">
+                <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: '600', marginBottom: '1.5rem' }}>
                     Dashboard
                 </h1>
 
-                {/* User Info Card */}
-                <div className="card" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{
-                        fontSize: '1rem',
-                        fontWeight: '600',
-                        marginBottom: '1rem',
-                        color: 'var(--muted)'
-                    }}>
-                        Your Account
-                    </h2>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>
-                                Display Name
-                            </div>
-                            <div style={{ fontWeight: '500' }}>{user?.displayName}</div>
+                {/* Account Card */}
+                <div className="dashboard-card">
+                    <h2>Your Account</h2>
+                    <div className="dashboard-grid">
+                        <div className="dashboard-stat">
+                            <div className="dashboard-stat-label">Display Name</div>
+                            <div className="dashboard-stat-value">{user?.displayName}</div>
                         </div>
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>
-                                Email
-                            </div>
-                            <div style={{ fontWeight: '500' }}>{user?.email}</div>
+                        <div className="dashboard-stat">
+                            <div className="dashboard-stat-label">Email</div>
+                            <div className="dashboard-stat-value">{user?.email}</div>
                         </div>
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>
-                                Discord ID
-                            </div>
-                            <div style={{ fontWeight: '500' }}>{user?.discordId || 'Not linked'}</div>
+                        <div className="dashboard-stat">
+                            <div className="dashboard-stat-label">Discord ID</div>
+                            <div className="dashboard-stat-value">{user?.discordId || 'Not linked'}</div>
                         </div>
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.25rem' }}>
-                                Authority Level
-                            </div>
-                            <div>
-                                <span className="badge badge-primary">
+                        <div className="dashboard-stat">
+                            <div className="dashboard-stat-label">Authority Level</div>
+                            <div className="dashboard-stat-value">
+                                <span className="badge badge-blue">
                                     {AUTHORITY_NAMES[user?.authorityLevel] || 'User'}
                                 </span>
                             </div>
@@ -172,26 +135,10 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* Users Table (Admin only) */}
+                {/* Users Table (Admin+) */}
                 {user?.authorityLevel >= 3 && (
-                    <div className="card">
-                        <div style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            marginBottom: '1rem'
-                        }}>
-                            <h2 style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--muted)' }}>
-                                All Users ({users.length})
-                            </h2>
-                            <button
-                                style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
-                                onClick={() => router.push('/admin/users/new')}
-                            >
-                                + Add User
-                            </button>
-                        </div>
-
+                    <div className="dashboard-card">
+                        <h2>All Users ({users.length})</h2>
                         <div className="table-container">
                             <table>
                                 <thead>
@@ -210,21 +157,21 @@ export default function DashboardPage() {
                                             <td style={{ fontWeight: '500' }}>{u.displayName}</td>
                                             <td>{u.email}</td>
                                             <td>
-                                                <span className="badge badge-primary">
+                                                <span className="badge badge-blue">
                                                     {AUTHORITY_NAMES[u.authorityLevel] || 'User'}
                                                 </span>
                                             </td>
                                             <td>
-                                                <span className={`badge ${u.enabled ? 'badge-success' : 'badge-error'}`}>
+                                                <span className={`badge ${u.enabled ? 'badge-green' : 'badge-red'}`}>
                                                     {u.enabled ? 'Active' : 'Disabled'}
                                                 </span>
                                             </td>
                                             <td>
-                                                <span className={`badge ${u.totpEnabled ? 'badge-success' : 'badge-warning'}`}>
-                                                    {u.totpEnabled ? 'Enabled' : 'Off'}
+                                                <span className={`badge ${u.totpEnabled ? 'badge-green' : 'badge-yellow'}`}>
+                                                    {u.totpEnabled ? 'On' : 'Off'}
                                                 </span>
                                             </td>
-                                            <td style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>
+                                            <td style={{ color: 'var(--text-muted)' }}>
                                                 {new Date(u.createdAt).toLocaleDateString()}
                                             </td>
                                         </tr>
