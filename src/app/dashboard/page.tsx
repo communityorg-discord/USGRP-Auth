@@ -136,6 +136,17 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
+                {/* Self-Service Navigation (All Users) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <Link href="/dashboard/profile" style={{ textDecoration: 'none' }}>
+                        <div className="dashboard-card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }}>
+                            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👤</div>
+                            <h3 style={{ margin: 0, color: '#fff' }}>My Profile</h3>
+                            <p style={{ margin: '0.5rem 0 0', color: '#64748b', fontSize: '0.875rem' }}>View details, change password</p>
+                        </div>
+                    </Link>
+                </div>
+
                 {/* Admin Navigation (Admin+) */}
                 {user?.authorityLevel >= 3 && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
