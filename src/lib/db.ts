@@ -51,14 +51,29 @@ function initializeSchema() {
             roles TEXT DEFAULT '[]',
             permissions TEXT DEFAULT '[]',
             enabled INTEGER DEFAULT 1,
+            suspended INTEGER DEFAULT 0,
+            suspended_reason TEXT,
+            suspended_at TEXT,
+            suspended_by TEXT,
             totp_secret TEXT,
             totp_enabled INTEGER DEFAULT 0,
+            mfa_enforced INTEGER DEFAULT 1,
+            recovery_codes TEXT,
+            backup_email TEXT,
             created_at TEXT DEFAULT (datetime('now')),
             updated_at TEXT DEFAULT (datetime('now'))
         )
     `);
 
-    // Sessions table
+    // Add new columns if they don't exist (for existing databases)
+    const userColumns = ['suspended', 'suspended_reason', 'suspended_at', 'suspended_by', 'mfa_enforced', 'recovery_codes', 'backup_email'];
+    userColumns.forEach(col => {
+        try {
+            database.exec(`ALTER TABLE users ADD COLUMN ${col} ${col === 'mfa_enforced' ? 'INTEGER DEFAULT 1' : col === 'suspended' ? 'INTEGER DEFAULT 0' : 'TEXT'}`);
+        } catch { /* Column already exists */ }
+    });
+
+    // Sessions table with device tracking
     database.exec(`
         CREATE TABLE IF NOT EXISTS sessions (
             id TEXT PRIMARY KEY,
@@ -66,9 +81,55 @@ function initializeSchema() {
             token_hash TEXT UNIQUE NOT NULL,
             ip TEXT,
             user_agent TEXT,
+            device_name TEXT,
+            device_fingerprint TEXT,
+            last_active TEXT DEFAULT (datetime('now')),
+            is_remembered INTEGER DEFAULT 0,
             expires_at TEXT NOT NULL,
             created_at TEXT DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    `);
+
+    // Add new session columns if they don't exist
+    const sessionColumns = ['device_name', 'device_fingerprint', 'last_active', 'is_remembered'];
+    sessionColumns.forEach(col => {
+        try {
+            database.exec(`ALTER TABLE sessions ADD COLUMN ${col} ${col === 'is_remembered' ? 'INTEGER DEFAULT 0' : col === 'last_active' ? "TEXT DEFAULT (datetime('now'))" : 'TEXT'}`);
+        } catch { /* Column already exists */ }
+    });
+
+    // Remembered devices table
+    database.exec(`
+        CREATE TABLE IF NOT EXISTS remembered_devices (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            device_fingerprint TEXT NOT NULL,
+            device_name TEXT,
+            ip TEXT,
+            last_used TEXT DEFAULT (datetime('now')),
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    `);
+
+    // Approval requests table (two-person rule)
+    database.exec(`
+        CREATE TABLE IF NOT EXISTS approval_requests (
+            id TEXT PRIMARY KEY,
+            requester_id TEXT NOT NULL,
+            approver_id TEXT,
+            action_type TEXT NOT NULL,
+            target_user TEXT,
+            action_data TEXT,
+            reason TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            expires_at TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            resolved_at TEXT,
+            approver_reason TEXT,
+            FOREIGN KEY (requester_id) REFERENCES users(id),
+            FOREIGN KEY (approver_id) REFERENCES users(id)
         )
     `);
 
@@ -91,6 +152,10 @@ function initializeSchema() {
         CREATE INDEX IF NOT EXISTS idx_users_discord_id ON users(discord_id);
         CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
         CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+        CREATE INDEX IF NOT EXISTS idx_sessions_last_active ON sessions(last_active);
+        CREATE INDEX IF NOT EXISTS idx_remembered_devices_user_id ON remembered_devices(user_id);
+        CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status);
+        CREATE INDEX IF NOT EXISTS idx_approval_requests_requester ON approval_requests(requester_id);
         CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id);
         CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
     `);
@@ -107,8 +172,15 @@ export interface User {
     roles: string;  // JSON string
     permissions: string;  // JSON string
     enabled: number;
+    suspended: number;
+    suspended_reason: string | null;
+    suspended_at: string | null;
+    suspended_by: string | null;
     totp_secret: string | null;
     totp_enabled: number;
+    mfa_enforced: number;
+    recovery_codes: string | null;  // JSON array of hashed codes
+    backup_email: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -119,8 +191,37 @@ export interface Session {
     token_hash: string;
     ip: string | null;
     user_agent: string | null;
+    device_name: string | null;
+    device_fingerprint: string | null;
+    last_active: string;
+    is_remembered: number;
     expires_at: string;
     created_at: string;
+}
+
+export interface RememberedDevice {
+    id: string;
+    user_id: string;
+    device_fingerprint: string;
+    device_name: string | null;
+    ip: string | null;
+    last_used: string;
+    created_at: string;
+}
+
+export interface ApprovalRequest {
+    id: string;
+    requester_id: string;
+    approver_id: string | null;
+    action_type: string;
+    target_user: string | null;
+    action_data: string | null;
+    reason: string;
+    status: 'pending' | 'approved' | 'denied' | 'expired';
+    expires_at: string;
+    created_at: string;
+    resolved_at: string | null;
+    approver_reason: string | null;
 }
 
 export interface AuditLogEntry {
@@ -258,44 +359,6 @@ export function getSessionByTokenHash(tokenHash: string): Session | null {
     return stmt.get(tokenHash) as Session | null;
 }
 
-export function getSessionsByUserId(userId: string): Session[] {
-    const stmt = getDb().prepare('SELECT * FROM sessions WHERE user_id = ? ORDER BY created_at DESC');
-    return stmt.all(userId) as Session[];
-}
-
-export function deleteSession(id: string): boolean {
-    try {
-        const stmt = getDb().prepare('DELETE FROM sessions WHERE id = ?');
-        const result = stmt.run(id);
-        return result.changes > 0;
-    } catch (e) {
-        console.error('Error deleting session:', e);
-        return false;
-    }
-}
-
-export function deleteUserSessions(userId: string): number {
-    try {
-        const stmt = getDb().prepare('DELETE FROM sessions WHERE user_id = ?');
-        const result = stmt.run(userId);
-        return result.changes;
-    } catch (e) {
-        console.error('Error deleting user sessions:', e);
-        return 0;
-    }
-}
-
-export function cleanExpiredSessions(): number {
-    try {
-        const stmt = getDb().prepare("DELETE FROM sessions WHERE expires_at < datetime('now')");
-        const result = stmt.run();
-        return result.changes;
-    } catch (e) {
-        console.error('Error cleaning expired sessions:', e);
-        return 0;
-    }
-}
-
 // Audit log operations
 export function logAudit(
     userId: string | null,
@@ -338,5 +401,185 @@ export function getAuditLogByUser(userId: string, limit = 50): AuditLogEntry[] {
     return stmt.all(userId, limit) as AuditLogEntry[];
 }
 
+// ============================================
+// Session Management
+// ============================================
+
+const MAX_SESSIONS = 2;
+const SESSION_TIMEOUT_MINUTES = 10;
+
+export function getUserSessions(userId: string): Session[] {
+    const stmt = getDb().prepare(`
+        SELECT * FROM sessions 
+        WHERE user_id = ? AND expires_at > datetime('now')
+        ORDER BY last_active DESC
+    `);
+    return stmt.all(userId) as Session[];
+}
+
+export function updateSessionActivity(sessionId: string): void {
+    const stmt = getDb().prepare(`
+        UPDATE sessions 
+        SET last_active = datetime('now')
+        WHERE id = ?
+    `);
+    stmt.run(sessionId);
+}
+
+export function deleteSession(sessionId: string): boolean {
+    const stmt = getDb().prepare(`DELETE FROM sessions WHERE id = ?`);
+    const result = stmt.run(sessionId);
+    return result.changes > 0;
+}
+
+export function deleteAllUserSessions(userId: string, exceptSessionId?: string): number {
+    let stmt;
+    if (exceptSessionId) {
+        stmt = getDb().prepare(`DELETE FROM sessions WHERE user_id = ? AND id != ?`);
+        return stmt.run(userId, exceptSessionId).changes;
+    } else {
+        stmt = getDb().prepare(`DELETE FROM sessions WHERE user_id = ?`);
+        return stmt.run(userId).changes;
+    }
+}
+
+export function enforceSessionLimit(userId: string): void {
+    // Get all sessions for user
+    const sessions = getUserSessions(userId);
+
+    // If over limit, delete oldest sessions
+    if (sessions.length >= MAX_SESSIONS) {
+        // Sort by last_active, keep newest (MAX_SESSIONS - 1) to allow new login
+        const sessionsToKeep = sessions
+            .sort((a, b) => new Date(b.last_active).getTime() - new Date(a.last_active).getTime())
+            .slice(0, MAX_SESSIONS - 1)
+            .map(s => s.id);
+
+        sessions.forEach(s => {
+            if (!sessionsToKeep.includes(s.id)) {
+                deleteSession(s.id);
+            }
+        });
+    }
+}
+
+export function cleanExpiredSessions(): number {
+    // Delete sessions expired by time OR inactive for more than timeout
+    const stmt = getDb().prepare(`
+        DELETE FROM sessions 
+        WHERE expires_at < datetime('now') 
+        OR last_active < datetime('now', '-${SESSION_TIMEOUT_MINUTES} minutes')
+    `);
+    return stmt.run().changes;
+}
+
+// ============================================
+// User Suspension
+// ============================================
+
+export function suspendUser(
+    userId: string,
+    reason: string,
+    suspendedBy: string
+): boolean {
+    const stmt = getDb().prepare(`
+        UPDATE users 
+        SET suspended = 1, 
+            suspended_reason = ?, 
+            suspended_at = datetime('now'), 
+            suspended_by = ?,
+            updated_at = datetime('now')
+        WHERE id = ?
+    `);
+    const result = stmt.run(reason, suspendedBy, userId);
+
+    // Delete all sessions for suspended user
+    if (result.changes > 0) {
+        deleteAllUserSessions(userId);
+    }
+
+    return result.changes > 0;
+}
+
+export function unsuspendUser(userId: string): boolean {
+    const stmt = getDb().prepare(`
+        UPDATE users 
+        SET suspended = 0, 
+            suspended_reason = NULL, 
+            suspended_at = NULL, 
+            suspended_by = NULL,
+            updated_at = datetime('now')
+        WHERE id = ?
+    `);
+    return stmt.run(userId).changes > 0;
+}
+
+export function isUserSuspended(userId: string): { suspended: boolean; reason?: string } {
+    const stmt = getDb().prepare(`SELECT suspended, suspended_reason FROM users WHERE id = ?`);
+    const result = stmt.get(userId) as { suspended: number; suspended_reason: string | null } | undefined;
+    if (!result) return { suspended: false };
+    return {
+        suspended: result.suspended === 1,
+        reason: result.suspended_reason || undefined
+    };
+}
+
+// ============================================
+// Remembered Devices
+// ============================================
+
+export function getRememberedDevices(userId: string): RememberedDevice[] {
+    const stmt = getDb().prepare(`
+        SELECT * FROM remembered_devices 
+        WHERE user_id = ? 
+        ORDER BY last_used DESC
+    `);
+    return stmt.all(userId) as RememberedDevice[];
+}
+
+export function addRememberedDevice(
+    userId: string,
+    deviceFingerprint: string,
+    deviceName: string | null,
+    ip: string | null
+): string {
+    const id = crypto.randomUUID();
+    const stmt = getDb().prepare(`
+        INSERT OR REPLACE INTO remembered_devices (id, user_id, device_fingerprint, device_name, ip)
+        VALUES (?, ?, ?, ?, ?)
+    `);
+    stmt.run(id, userId, deviceFingerprint, deviceName, ip);
+    return id;
+}
+
+export function isDeviceRemembered(userId: string, deviceFingerprint: string): boolean {
+    const stmt = getDb().prepare(`
+        SELECT id FROM remembered_devices 
+        WHERE user_id = ? AND device_fingerprint = ?
+    `);
+    const result = stmt.get(userId, deviceFingerprint);
+
+    if (result) {
+        // Update last used
+        const update = getDb().prepare(`
+            UPDATE remembered_devices SET last_used = datetime('now') WHERE user_id = ? AND device_fingerprint = ?
+        `);
+        update.run(userId, deviceFingerprint);
+    }
+
+    return !!result;
+}
+
+export function removeRememberedDevice(deviceId: string): boolean {
+    const stmt = getDb().prepare(`DELETE FROM remembered_devices WHERE id = ?`);
+    return stmt.run(deviceId).changes > 0;
+}
+
+export function removeAllRememberedDevices(userId: string): number {
+    const stmt = getDb().prepare(`DELETE FROM remembered_devices WHERE user_id = ?`);
+    return stmt.run(userId).changes;
+}
+
 // Export the database getter for direct access if needed
 export { getDb };
+

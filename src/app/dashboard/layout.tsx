@@ -33,6 +33,7 @@ const NAV_SECTIONS = [
         title: 'Administration',
         items: [
             { name: 'Users', path: '/dashboard/users', icon: '👥', minLevel: 3 },
+            { name: 'Approvals', path: '/dashboard/approvals', icon: '✅', minLevel: 3 },
             { name: 'Audit Log', path: '/dashboard/audit', icon: '📋', minLevel: 3 },
         ],
     },
