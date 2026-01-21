@@ -14,6 +14,8 @@ export async function GET() {
         return NextResponse.json({
             authenticated: true,
             user: session.user,
+            token: session.authToken,
+            mc: session.mailCredentials, // Mail credentials for SSO
         });
 
     } catch (error: unknown) {

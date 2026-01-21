@@ -8,6 +8,8 @@ export interface SessionData {
     lastActivity?: number;
     pending2FA?: boolean;
     pendingUserId?: string;
+    // Stored for SSO credential passing to other services (base64 encoded)
+    mailCredentials?: string;
 }
 
 export const sessionOptions: SessionOptions = {

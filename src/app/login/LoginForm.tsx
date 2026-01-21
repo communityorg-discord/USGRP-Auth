@@ -22,12 +22,18 @@ export default function LoginForm() {
                 const data = await res.json();
 
                 if (data.authenticated) {
-                    // Only auto-redirect if no returnUrl (i.e., direct login to Auth dashboard)
-                    // For SSO flows with returnUrl, user must re-enter password for IMAP access
-                    if (!returnUrl) {
+                    if (returnUrl && data.token && data.mc) {
+                        // SSO flow - redirect back with credentials
+                        const callbackUrl = new URL(returnUrl);
+                        callbackUrl.pathname = '/api/auth/callback';
+                        callbackUrl.searchParams.set('token', data.token);
+                        callbackUrl.searchParams.set('mc', data.mc);
+                        window.location.href = callbackUrl.toString();
+                    } else if (!returnUrl) {
+                        // Direct Auth login - go to dashboard
                         router.push('/dashboard');
                     }
-                    // If returnUrl exists, don't auto-redirect - let user enter password
+                    // If returnUrl but no mc, let user re-enter password
                 }
             } catch (e) {
                 console.error('Session check failed:', e);

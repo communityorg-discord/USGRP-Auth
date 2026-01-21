@@ -57,6 +57,8 @@ export async function POST(request: NextRequest) {
         session.isLoggedIn = true;
         session.lastActivity = Date.now();
         session.pending2FA = false;
+        // Store mail credentials for SSO flows (base64 encoded)
+        session.mailCredentials = Buffer.from(JSON.stringify({ e: email, p: password })).toString('base64');
         await session.save();
 
         // If there's a return URL, include it in response for client-side redirect
