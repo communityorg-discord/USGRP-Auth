@@ -167,6 +167,19 @@ export default function DashboardPage() {
                     </div>
                 )}
 
+                {/* Superuser Navigation (SUPERUSER+) */}
+                {user?.authorityLevel >= 5 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                        <Link href="/dashboard/permissions" style={{ textDecoration: 'none' }}>
+                            <div className="dashboard-card" style={{ cursor: 'pointer', transition: 'transform 0.2s', borderColor: '#f59e0b' }}>
+                                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔑</div>
+                                <h3 style={{ margin: 0, color: '#fff' }}>Permissions</h3>
+                                <p style={{ margin: '0.5rem 0 0', color: '#64748b', fontSize: '0.875rem' }}>Manage user permissions</p>
+                            </div>
+                        </Link>
+                    </div>
+                )}
+
                 {/* Users Table (Admin+) */}
                 {user?.authorityLevel >= 3 && (
                     <div className="dashboard-card">

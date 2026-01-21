@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
             displayName: u.display_name,
             authorityLevel: u.authority_level,
             roles: JSON.parse(u.roles || '[]'),
+            permissions: JSON.parse(u.permissions || '[]'),
             enabled: !!u.enabled,
             totpEnabled: !!u.totp_enabled,
             createdAt: u.created_at,
@@ -135,7 +136,7 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        const { userId, email, displayName, discordId, authorityLevel, password, enabled } = await request.json();
+        const { userId, email, displayName, discordId, authorityLevel, password, enabled, permissions } = await request.json();
 
         if (!userId) {
             return NextResponse.json({ error: 'User ID required' }, { status: 400 });
@@ -160,6 +161,9 @@ export async function PUT(request: NextRequest) {
         }
         if (enabled !== undefined) {
             updates.enabled = enabled ? 1 : 0;
+        }
+        if (permissions !== undefined) {
+            updates.permissions = JSON.stringify(permissions);
         }
 
         const success = dbUpdateUser(userId, updates);
