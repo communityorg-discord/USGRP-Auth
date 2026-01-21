@@ -1,9 +1,12 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+
 const APPLICATIONS = [
     {
         name: 'USGRP Mail',
         url: 'https://mail.usgrp.xyz',
+        callbackPath: '/api/auth/callback',
         icon: '📧',
         description: 'Secure staff email and communication',
         status: 'online'
@@ -11,6 +14,7 @@ const APPLICATIONS = [
     {
         name: 'Admin Dashboard',
         url: 'https://admin.usgrp.xyz',
+        callbackPath: '/api/auth/callback',
         icon: '🏛️',
         description: 'Staff administration and management tools',
         status: 'online'
@@ -18,6 +22,7 @@ const APPLICATIONS = [
     {
         name: 'Status Portal',
         url: 'https://status.usgrp.xyz',
+        callbackPath: '/api/auth/callback',
         icon: '📊',
         description: 'System status, changelogs, and roadmap',
         status: 'online'
@@ -25,8 +30,37 @@ const APPLICATIONS = [
 ];
 
 export default function AppsPage() {
-    function handleAppClick(url: string) {
-        window.location.href = url;
+    const [authToken, setAuthToken] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function getToken() {
+            try {
+                const res = await fetch('/api/auth/session');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.authToken) {
+                        setAuthToken(data.authToken);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to get auth token:', e);
+            } finally {
+                setLoading(false);
+            }
+        }
+        getToken();
+    }, []);
+
+    function handleAppClick(app: typeof APPLICATIONS[0]) {
+        if (authToken) {
+            // SSO redirect with token
+            const callbackUrl = `${app.url}${app.callbackPath}?token=${encodeURIComponent(authToken)}`;
+            window.location.href = callbackUrl;
+        } else {
+            // Fallback - just go to the app (will redirect to login)
+            window.location.href = app.url;
+        }
     }
 
     return (
@@ -49,10 +83,11 @@ export default function AppsPage() {
                     <div
                         key={app.name}
                         className="gov-app-card"
-                        onClick={() => handleAppClick(app.url)}
+                        onClick={() => handleAppClick(app)}
                         role="button"
                         tabIndex={0}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAppClick(app.url)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAppClick(app)}
+                        style={{ opacity: loading ? 0.7 : 1 }}
                     >
                         <div className="gov-app-icon">{app.icon}</div>
                         <div className="gov-app-info">
