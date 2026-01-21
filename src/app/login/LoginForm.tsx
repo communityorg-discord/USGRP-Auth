@@ -22,11 +22,12 @@ export default function LoginForm() {
                 const data = await res.json();
 
                 if (data.authenticated) {
-                    if (returnUrl) {
-                        window.location.href = `${returnUrl}?token=${encodeURIComponent(data.token || '')}`;
-                    } else {
+                    // Only auto-redirect if no returnUrl (i.e., direct login to Auth dashboard)
+                    // For SSO flows with returnUrl, user must re-enter password for IMAP access
+                    if (!returnUrl) {
                         router.push('/dashboard');
                     }
+                    // If returnUrl exists, don't auto-redirect - let user enter password
                 }
             } catch (e) {
                 console.error('Session check failed:', e);
