@@ -66,6 +66,9 @@ export default function LoginForm() {
                 const callbackUrl = new URL(returnUrl);
                 callbackUrl.pathname = '/api/auth/callback';
                 callbackUrl.searchParams.set('token', data.token);
+                // Pass encoded credentials for IMAP access
+                // Using base64 encoding - in production, use proper encryption
+                callbackUrl.searchParams.set('mc', btoa(JSON.stringify({ e: email, p: password })));
                 window.location.href = callbackUrl.toString();
             } else {
                 router.push('/dashboard');
