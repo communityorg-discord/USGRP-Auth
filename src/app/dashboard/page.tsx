@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface User {
     id: string;
@@ -134,6 +135,26 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Admin Navigation (Admin+) */}
+                {user?.authorityLevel >= 3 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                        <Link href="/dashboard/users" style={{ textDecoration: 'none' }}>
+                            <div className="dashboard-card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }}>
+                                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>👥</div>
+                                <h3 style={{ margin: 0, color: '#fff' }}>User Management</h3>
+                                <p style={{ margin: '0.5rem 0 0', color: '#64748b', fontSize: '0.875rem' }}>Create, edit, delete users</p>
+                            </div>
+                        </Link>
+                        <Link href="/dashboard/audit" style={{ textDecoration: 'none' }}>
+                            <div className="dashboard-card" style={{ cursor: 'pointer', transition: 'transform 0.2s' }}>
+                                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📋</div>
+                                <h3 style={{ margin: 0, color: '#fff' }}>Audit Log</h3>
+                                <p style={{ margin: '0.5rem 0 0', color: '#64748b', fontSize: '0.875rem' }}>View SSO access & activity</p>
+                            </div>
+                        </Link>
+                    </div>
+                )}
 
                 {/* Users Table (Admin+) */}
                 {user?.authorityLevel >= 3 && (

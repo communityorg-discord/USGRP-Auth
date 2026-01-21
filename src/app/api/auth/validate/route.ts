@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateToken } from '@/lib/auth';
+import { logAudit } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
     try {
-        const { token } = await request.json();
+        const { token, service } = await request.json();
 
         if (!token) {
             return NextResponse.json(
@@ -18,6 +19,20 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { valid: false, error: result.error },
                 { status: 401 }
+            );
+        }
+
+        // Log SSO access to service
+        if (service && result.user) {
+            const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ||
+                request.headers.get('x-real-ip') ||
+                'unknown';
+            logAudit(
+                result.user.userId,
+                'SSO_ACCESS',
+                service,
+                `Authenticated via SSO to ${service}`,
+                ip
             );
         }
 
@@ -70,3 +85,4 @@ export async function GET(request: NextRequest) {
         );
     }
 }
+
