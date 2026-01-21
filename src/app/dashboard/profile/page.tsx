@@ -1,8 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 
 interface User {
     userId: string;
@@ -24,26 +22,15 @@ const AUTHORITY_NAMES: Record<number, string> = {
     6: 'Bot Developer',
 };
 
-// Available applications with SSO
-const APPLICATIONS = [
-    { name: 'Mail', url: 'https://mail.usgrp.xyz', icon: '📧', description: 'USGRP Email' },
-    { name: 'Admin Dashboard', url: 'https://admin.usgrp.xyz', icon: '🏛️', description: 'Staff Administration' },
-    { name: 'Status Portal', url: 'https://status.usgrp.xyz', icon: '📊', description: 'Service Status' },
-];
-
 export default function ProfilePage() {
-    const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-
-    // Password change state
-    const [showPasswordChange, setShowPasswordChange] = useState(false);
-    const [currentPassword, setCurrentPassword] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
-    const [passwordLoading, setPasswordLoading] = useState(false);
-    const [passwordError, setPasswordError] = useState('');
-    const [passwordSuccess, setPasswordSuccess] = useState('');
+    const [editing, setEditing] = useState(false);
+    const [displayName, setDisplayName] = useState('');
+    const [discordId, setDiscordId] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
 
     useEffect(() => {
         async function loadProfile() {
@@ -51,342 +38,196 @@ export default function ProfilePage() {
                 const res = await fetch('/api/auth/session');
                 const data = await res.json();
 
-                if (!data.authenticated) {
-                    router.push('/login');
-                    return;
+                if (data.authenticated && data.user) {
+                    setUser(data.user);
+                    setDisplayName(data.user.displayName);
+                    setDiscordId(data.user.discordId || '');
                 }
-
-                setUser(data.user);
-            } catch (error) {
-                console.error('Failed to load profile:', error);
-                router.push('/login');
+            } catch (e) {
+                console.error('Failed to load profile:', e);
             } finally {
                 setLoading(false);
             }
         }
         loadProfile();
-    }, [router]);
+    }, []);
 
-    async function handlePasswordChange(e: FormEvent) {
-        e.preventDefault();
-        setPasswordError('');
-        setPasswordSuccess('');
+    async function handleSave() {
+        if (!user) return;
 
-        if (newPassword !== confirmPassword) {
-            setPasswordError("New passwords don't match");
-            return;
-        }
-
-        if (newPassword.length < 8) {
-            setPasswordError('Password must be at least 8 characters');
-            return;
-        }
-
-        setPasswordLoading(true);
+        setSaving(true);
+        setMessage('');
+        setError('');
 
         try {
-            const res = await fetch('/api/auth/password', {
-                method: 'POST',
+            const res = await fetch('/api/users', {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ currentPassword, newPassword }),
+                body: JSON.stringify({
+                    userId: user.userId,
+                    displayName,
+                    discordId: discordId || null,
+                }),
             });
 
-            const data = await res.json();
-
-            if (!res.ok) {
-                setPasswordError(data.error || 'Failed to change password');
-                return;
+            if (res.ok) {
+                setMessage('Profile updated successfully');
+                setEditing(false);
+                // Refresh user data
+                const sessionRes = await fetch('/api/auth/session');
+                const sessionData = await sessionRes.json();
+                if (sessionData.user) setUser(sessionData.user);
+            } else {
+                const data = await res.json();
+                setError(data.error || 'Failed to update profile');
             }
-
-            setPasswordSuccess(data.message || 'Password changed successfully!');
-            setCurrentPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            setShowPasswordChange(false);
-        } catch (error) {
-            setPasswordError('Connection error. Please try again.');
+        } catch (e) {
+            setError('Connection error');
         } finally {
-            setPasswordLoading(false);
+            setSaving(false);
         }
-    }
-
-    function handleAppClick(url: string) {
-        // Apps will auto-sign in via SSO since user is already authenticated
-        window.location.href = url;
     }
 
     if (loading) {
         return (
-            <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ color: '#64748b' }}>Loading...</div>
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--gov-gray)' }}>
+                Loading profile...
             </div>
         );
     }
 
     return (
-        <div style={{ minHeight: '100vh', background: '#0f172a', color: '#e2e8f0', padding: '2rem' }}>
-            {/* Header */}
-            <div style={{ marginBottom: '2rem' }}>
-                <Link href="/dashboard" style={{ color: '#64748b', textDecoration: 'none', marginBottom: '1rem', display: 'inline-block' }}>
-                    ← Back to Dashboard
-                </Link>
-                <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>My Profile</h1>
-                <p style={{ color: '#64748b', marginTop: '0.5rem' }}>Manage your account and access applications</p>
+        <div>
+            {/* Page Header */}
+            <div className="gov-page-header">
+                <h1 className="gov-page-title">My Profile</h1>
+                <p className="gov-page-subtitle">View and manage your account information</p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.5rem' }}>
-                {/* Account Details */}
-                <div style={{
-                    background: '#1e293b',
-                    borderRadius: '0.75rem',
-                    padding: '1.5rem',
-                    border: '1px solid #334155'
-                }}>
-                    <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span>👤</span> Account Details
-                    </h2>
+            {message && <div className="gov-alert gov-alert-success">{message}</div>}
+            {error && <div className="gov-alert gov-alert-error">{error}</div>}
 
-                    <div style={{ display: 'grid', gap: '1rem' }}>
-                        <div>
-                            <label style={{ color: '#64748b', fontSize: '0.875rem', display: 'block', marginBottom: '0.25rem' }}>Display Name</label>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 500 }}>{user?.displayName}</div>
-                        </div>
-                        <div>
-                            <label style={{ color: '#64748b', fontSize: '0.875rem', display: 'block', marginBottom: '0.25rem' }}>Email</label>
-                            <div style={{ fontFamily: 'monospace' }}>{user?.email}</div>
-                        </div>
-                        <div>
-                            <label style={{ color: '#64748b', fontSize: '0.875rem', display: 'block', marginBottom: '0.25rem' }}>Discord ID</label>
-                            <div style={{ fontFamily: 'monospace' }}>{user?.discordId || 'Not linked'}</div>
-                        </div>
-                        <div>
-                            <label style={{ color: '#64748b', fontSize: '0.875rem', display: 'block', marginBottom: '0.25rem' }}>Role</label>
-                            <div>
-                                <span style={{
-                                    padding: '0.25rem 0.75rem',
-                                    background: '#3b82f620',
-                                    color: '#3b82f6',
-                                    borderRadius: '9999px',
-                                    fontSize: '0.875rem',
-                                    fontWeight: 500,
-                                }}>
-                                    {AUTHORITY_NAMES[user?.authorityLevel || 0]}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Quick Applications */}
-                <div style={{
-                    background: '#1e293b',
-                    borderRadius: '0.75rem',
-                    padding: '1.5rem',
-                    border: '1px solid #334155'
-                }}>
-                    <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span>🚀</span> Quick Access
-                    </h2>
-                    <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                        Click to open with automatic sign-in
-                    </p>
-
-                    <div style={{ display: 'grid', gap: '0.75rem' }}>
-                        {APPLICATIONS.map(app => (
-                            <button
-                                key={app.name}
-                                onClick={() => handleAppClick(app.url)}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '1rem',
-                                    padding: '1rem',
-                                    background: '#0f172a',
-                                    border: '1px solid #334155',
-                                    borderRadius: '0.5rem',
-                                    cursor: 'pointer',
-                                    textAlign: 'left',
-                                    transition: 'all 0.2s',
-                                    width: '100%',
-                                }}
-                                onMouseOver={e => {
-                                    e.currentTarget.style.background = '#334155';
-                                    e.currentTarget.style.borderColor = '#3b82f6';
-                                }}
-                                onMouseOut={e => {
-                                    e.currentTarget.style.background = '#0f172a';
-                                    e.currentTarget.style.borderColor = '#334155';
-                                }}
-                            >
-                                <span style={{ fontSize: '1.5rem' }}>{app.icon}</span>
-                                <div>
-                                    <div style={{ color: '#e2e8f0', fontWeight: 500 }}>{app.name}</div>
-                                    <div style={{ color: '#64748b', fontSize: '0.75rem' }}>{app.description}</div>
-                                </div>
-                                <span style={{ marginLeft: 'auto', color: '#64748b' }}>→</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Password Change */}
-                <div style={{
-                    background: '#1e293b',
-                    borderRadius: '0.75rem',
-                    padding: '1.5rem',
-                    border: '1px solid #334155'
-                }}>
-                    <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span>🔐</span> Security
-                    </h2>
-
-                    {passwordSuccess && (
-                        <div style={{
-                            padding: '0.75rem 1rem',
-                            background: '#22c55e20',
-                            color: '#22c55e',
-                            borderRadius: '0.5rem',
-                            marginBottom: '1rem',
-                            fontSize: '0.875rem',
-                        }}>
-                            ✓ {passwordSuccess}
-                        </div>
+            {/* Personal Information */}
+            <div className="gov-card">
+                <div className="gov-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h2 className="gov-card-title">Personal Information</h2>
+                    {!editing && (
+                        <button onClick={() => setEditing(true)} className="gov-btn gov-btn-secondary">
+                            ✏️ Edit
+                        </button>
                     )}
-
-                    {!showPasswordChange ? (
+                </div>
+                <div className="gov-card-body">
+                    {editing ? (
                         <div>
-                            <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                                Password changes apply to Auth and Mail
-                            </p>
-                            <button
-                                onClick={() => setShowPasswordChange(true)}
-                                style={{
-                                    padding: '0.75rem 1.5rem',
-                                    background: '#3b82f6',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '0.5rem',
-                                    cursor: 'pointer',
-                                    fontWeight: 500,
-                                }}
-                            >
-                                Change Password
-                            </button>
-                        </div>
-                    ) : (
-                        <form onSubmit={handlePasswordChange} style={{ display: 'grid', gap: '1rem' }}>
-                            {passwordError && (
-                                <div style={{
-                                    padding: '0.75rem 1rem',
-                                    background: '#ef444420',
-                                    color: '#ef4444',
-                                    borderRadius: '0.5rem',
-                                    fontSize: '0.875rem',
-                                }}>
-                                    {passwordError}
-                                </div>
-                            )}
-
-                            <div>
-                                <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
-                                    Current Password
-                                </label>
+                            <div className="gov-form-group">
+                                <label className="gov-form-label">Display Name</label>
                                 <input
-                                    type="password"
-                                    value={currentPassword}
-                                    onChange={e => setCurrentPassword(e.target.value)}
-                                    required
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
-                                        background: '#0f172a',
-                                        border: '1px solid #334155',
-                                        borderRadius: '0.5rem',
-                                        color: '#e2e8f0',
-                                    }}
+                                    type="text"
+                                    className="gov-form-input"
+                                    value={displayName}
+                                    onChange={(e) => setDisplayName(e.target.value)}
                                 />
                             </div>
-
-                            <div>
-                                <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
-                                    New Password
-                                </label>
+                            <div className="gov-form-group">
+                                <label className="gov-form-label">Discord ID</label>
                                 <input
-                                    type="password"
-                                    value={newPassword}
-                                    onChange={e => setNewPassword(e.target.value)}
-                                    required
-                                    minLength={8}
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
-                                        background: '#0f172a',
-                                        border: '1px solid #334155',
-                                        borderRadius: '0.5rem',
-                                        color: '#e2e8f0',
-                                    }}
+                                    type="text"
+                                    className="gov-form-input"
+                                    value={discordId}
+                                    onChange={(e) => setDiscordId(e.target.value)}
+                                    placeholder="Optional - Your Discord user ID"
                                 />
                             </div>
-
-                            <div>
-                                <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
-                                    Confirm New Password
-                                </label>
-                                <input
-                                    type="password"
-                                    value={confirmPassword}
-                                    onChange={e => setConfirmPassword(e.target.value)}
-                                    required
-                                    style={{
-                                        width: '100%',
-                                        padding: '0.75rem',
-                                        background: '#0f172a',
-                                        border: '1px solid #334155',
-                                        borderRadius: '0.5rem',
-                                        color: '#e2e8f0',
-                                    }}
-                                />
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '0.75rem' }}>
-                                <button
-                                    type="submit"
-                                    disabled={passwordLoading}
-                                    style={{
-                                        padding: '0.75rem 1.5rem',
-                                        background: passwordLoading ? '#334155' : '#22c55e',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '0.5rem',
-                                        cursor: passwordLoading ? 'not-allowed' : 'pointer',
-                                        fontWeight: 500,
-                                    }}
-                                >
-                                    {passwordLoading ? 'Updating...' : 'Update Password'}
+                            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                                <button onClick={handleSave} disabled={saving} className="gov-btn gov-btn-primary">
+                                    {saving ? 'Saving...' : 'Save Changes'}
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowPasswordChange(false);
-                                        setPasswordError('');
-                                        setCurrentPassword('');
-                                        setNewPassword('');
-                                        setConfirmPassword('');
-                                    }}
-                                    style={{
-                                        padding: '0.75rem 1.5rem',
-                                        background: 'transparent',
-                                        color: '#64748b',
-                                        border: '1px solid #334155',
-                                        borderRadius: '0.5rem',
-                                        cursor: 'pointer',
-                                    }}
-                                >
+                                <button onClick={() => { setEditing(false); setDisplayName(user?.displayName || ''); setDiscordId(user?.discordId || ''); }} className="gov-btn gov-btn-secondary">
                                     Cancel
                                 </button>
                             </div>
-                        </form>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                            <div>
+                                <div className="gov-stat-label">Display Name</div>
+                                <div style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--gov-gray-dark)' }}>
+                                    {user?.displayName}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="gov-stat-label">Email Address</div>
+                                <div style={{ fontSize: '1rem', color: 'var(--gov-gray-dark)', fontFamily: 'monospace' }}>
+                                    {user?.email}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="gov-stat-label">Discord ID</div>
+                                <div style={{ fontSize: '1rem', color: 'var(--gov-gray-dark)', fontFamily: 'monospace' }}>
+                                    {user?.discordId || 'Not linked'}
+                                </div>
+                            </div>
+                            <div>
+                                <div className="gov-stat-label">Authority Level</div>
+                                <div>
+                                    <span className="gov-badge gov-badge-blue">
+                                        {AUTHORITY_NAMES[user?.authorityLevel || 0]}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
                     )}
+                </div>
+            </div>
+
+            {/* Account Information */}
+            <div className="gov-card">
+                <div className="gov-card-header">
+                    <h2 className="gov-card-title">Account Details</h2>
+                </div>
+                <div className="gov-card-body">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                        <div>
+                            <div className="gov-stat-label">User ID</div>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--gov-gray)', fontFamily: 'monospace' }}>
+                                {user?.userId}
+                            </div>
+                        </div>
+                        <div>
+                            <div className="gov-stat-label">Account Type</div>
+                            <div style={{ fontSize: '1rem', color: 'var(--gov-gray-dark)' }}>
+                                Staff Account
+                            </div>
+                        </div>
+                        <div>
+                            <div className="gov-stat-label">Permissions</div>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                {(user?.permissions || []).length > 0 ? (
+                                    user?.permissions.map((p) => (
+                                        <span key={p} className="gov-badge gov-badge-green">{p}</span>
+                                    ))
+                                ) : (
+                                    <span style={{ color: 'var(--gov-gray)' }}>Standard permissions</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Security Quick Link */}
+            <div className="gov-card">
+                <div className="gov-card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                        <h3 style={{ margin: 0, color: 'var(--gov-gray-dark)', fontSize: '1rem' }}>Security Settings</h3>
+                        <p style={{ margin: '0.25rem 0 0', color: 'var(--gov-gray)', fontSize: '0.875rem' }}>
+                            Change password, manage 2FA, view active sessions
+                        </p>
+                    </div>
+                    <a href="/dashboard/security" className="gov-btn gov-btn-primary">
+                        🔐 Manage Security
+                    </a>
                 </div>
             </div>
         </div>

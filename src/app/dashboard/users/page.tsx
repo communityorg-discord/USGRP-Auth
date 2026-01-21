@@ -56,7 +56,7 @@ export default function UsersPage() {
             const sessionData = await sessionRes.json();
 
             if (!sessionData.authenticated || sessionData.user.authorityLevel < 3) {
-                router.push('/login');
+                router.push('/dashboard');
                 return;
             }
 
@@ -64,7 +64,6 @@ export default function UsersPage() {
             await loadUsers();
         } catch (e) {
             console.error('Auth check failed:', e);
-            router.push('/login');
         } finally {
             setLoading(false);
         }
@@ -156,80 +155,39 @@ export default function UsersPage() {
 
     if (loading) {
         return (
-            <div className="sso-container">
-                <div className="sso-loading">
-                    <div className="sso-spinner"></div>
-                    <p>Loading...</p>
-                </div>
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--gov-gray)' }}>
+                Loading users...
             </div>
         );
     }
 
     return (
-        <div className="dashboard">
-            {/* Header */}
-            <header className="dashboard-header">
-                <div className="dashboard-brand">
-                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect width="40" height="40" rx="8" fill="#3b82f6" />
-                        <path d="M12 20L18 26L28 14" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <h1>USGRP Auth</h1>
+        <div>
+            {/* Page Header */}
+            <div className="gov-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <h1 className="gov-page-title">User Management</h1>
+                    <p className="gov-page-subtitle">
+                        {miabConnected ? '✅ Connected to Mail-in-a-Box' : '⚠️ Mail-in-a-Box not connected'}
+                    </p>
                 </div>
+                <button onClick={() => setShowCreateModal(true)} className="gov-btn gov-btn-primary">
+                    + Create User
+                </button>
+            </div>
 
-                <nav style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <a href="/dashboard" style={{ color: '#94a3b8', textDecoration: 'none' }}>Dashboard</a>
-                    <a href="/dashboard/users" style={{ color: '#fff', textDecoration: 'none', fontWeight: '600' }}>Users</a>
-                    <button onClick={() => router.push('/api/auth/logout')} className="dashboard-logout">
-                        Sign out
-                    </button>
-                </nav>
-            </header>
+            {/* Alerts */}
+            {error && <div className="gov-alert gov-alert-error">{error}</div>}
+            {success && <div className="gov-alert gov-alert-success">{success}</div>}
 
-            {/* Content */}
-            <main className="dashboard-content">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                    <div>
-                        <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: '600' }}>User Management</h1>
-                        <p style={{ color: '#94a3b8', marginTop: '0.25rem' }}>
-                            {miabConnected ? '✅ Connected to Mail-in-a-box' : '⚠️ Mail-in-a-box not connected'}
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => setShowCreateModal(true)}
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            padding: '0.75rem 1.25rem',
-                            background: '#3b82f6',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontWeight: '600',
-                        }}
-                    >
-                        <span>+</span> Create User
-                    </button>
+            {/* Users Table */}
+            <div className="gov-card">
+                <div className="gov-card-header">
+                    <h2 className="gov-card-title">All Users ({users.length})</h2>
                 </div>
-
-                {/* Errors/Success */}
-                {error && (
-                    <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', borderRadius: '8px', color: '#f87171', marginBottom: '1rem' }}>
-                        {error}
-                    </div>
-                )}
-                {success && (
-                    <div style={{ padding: '1rem', background: 'rgba(34, 197, 94, 0.2)', border: '1px solid #22c55e', borderRadius: '8px', color: '#4ade80', marginBottom: '1rem' }}>
-                        {success}
-                    </div>
-                )}
-
-                {/* Users Table */}
-                <div className="dashboard-card">
-                    <div className="table-container">
-                        <table>
+                <div className="gov-card-body" style={{ padding: 0 }}>
+                    <div className="gov-table-container">
+                        <table className="gov-table">
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -244,39 +202,33 @@ export default function UsersPage() {
                             <tbody>
                                 {users.map((u) => (
                                     <tr key={u.id}>
-                                        <td style={{ fontWeight: '500' }}>{u.displayName}</td>
-                                        <td>{u.email}</td>
-                                        <td style={{ color: u.discordId ? '#fff' : '#64748b' }}>
+                                        <td style={{ fontWeight: 600 }}>{u.displayName}</td>
+                                        <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{u.email}</td>
+                                        <td style={{ color: u.discordId ? 'var(--gov-gray-dark)' : 'var(--gov-gray-light)', fontFamily: 'monospace', fontSize: '0.8125rem' }}>
                                             {u.discordId || 'Not linked'}
                                         </td>
                                         <td>
-                                            <span className="badge badge-blue">
+                                            <span className="gov-badge gov-badge-blue">
                                                 {AUTHORITY_NAMES[u.authorityLevel] || 'User'}
                                             </span>
                                         </td>
                                         <td>
-                                            <span className={`badge ${u.hasMailbox ? 'badge-green' : 'badge-red'}`}>
+                                            <span className={`gov-badge ${u.hasMailbox ? 'gov-badge-green' : 'gov-badge-red'}`}>
                                                 {u.hasMailbox ? 'Yes' : 'No'}
                                             </span>
                                         </td>
                                         <td>
-                                            <span className={`badge ${u.enabled ? 'badge-green' : 'badge-red'}`}>
+                                            <span className={`gov-badge ${u.enabled ? 'gov-badge-green' : 'gov-badge-red'}`}>
                                                 {u.enabled ? 'Active' : 'Disabled'}
                                             </span>
                                         </td>
                                         <td>
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button
-                                                    onClick={() => router.push(`/dashboard/users/${u.id}`)}
-                                                    style={{ padding: '0.25rem 0.5rem', background: '#1e293b', color: '#94a3b8', border: '1px solid #334155', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
-                                                >
+                                                <button onClick={() => router.push(`/dashboard/users/${u.id}`)} className="gov-btn gov-btn-secondary" style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}>
                                                     Edit
                                                 </button>
                                                 {currentUser?.authorityLevel >= 5 && (
-                                                    <button
-                                                        onClick={() => handleDeleteUser(u.id, u.email)}
-                                                        style={{ padding: '0.25rem 0.5rem', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid #ef4444', borderRadius: '4px', cursor: 'pointer', fontSize: '0.75rem' }}
-                                                    >
+                                                    <button onClick={() => handleDeleteUser(u.id, u.email)} className="gov-btn gov-btn-danger" style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}>
                                                         Delete
                                                     </button>
                                                 )}
@@ -288,96 +240,78 @@ export default function UsersPage() {
                         </table>
                     </div>
                 </div>
-            </main>
+            </div>
 
             {/* Create User Modal */}
             {showCreateModal && (
                 <div style={{
                     position: 'fixed',
                     inset: 0,
-                    background: 'rgba(0, 0, 0, 0.7)',
+                    background: 'rgba(0, 0, 0, 0.5)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    zIndex: 50,
+                    zIndex: 1000,
                 }}>
-                    <div style={{
-                        background: '#1e293b',
-                        borderRadius: '12px',
-                        padding: '2rem',
-                        width: '100%',
-                        maxWidth: '500px',
-                        border: '1px solid #334155',
-                    }}>
-                        <h2 style={{ color: '#fff', fontSize: '1.25rem', fontWeight: '600', marginBottom: '1.5rem' }}>
-                            Create New User
-                        </h2>
-
-                        <form onSubmit={handleCreateUser}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                <div>
-                                    <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
-                                        Email *
-                                    </label>
+                    <div className="gov-card" style={{ width: '100%', maxWidth: '500px', margin: '1rem' }}>
+                        <div className="gov-card-header">
+                            <h2 className="gov-card-title">Create New User</h2>
+                        </div>
+                        <div className="gov-card-body">
+                            <form onSubmit={handleCreateUser}>
+                                <div className="gov-form-group">
+                                    <label className="gov-form-label">Email *</label>
                                     <input
                                         type="email"
+                                        className="gov-form-input"
                                         value={newEmail}
                                         onChange={(e) => setNewEmail(e.target.value)}
                                         required
                                         placeholder="user@usgrp.xyz"
-                                        style={{ width: '100%', padding: '0.75rem', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }}
                                     />
                                 </div>
 
-                                <div>
-                                    <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
-                                        Password *
-                                    </label>
+                                <div className="gov-form-group">
+                                    <label className="gov-form-label">Password *</label>
                                     <input
                                         type="password"
+                                        className="gov-form-input"
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
                                         required
                                         placeholder="••••••••"
-                                        style={{ width: '100%', padding: '0.75rem', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }}
                                     />
                                 </div>
 
-                                <div>
-                                    <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
-                                        Display Name *
-                                    </label>
+                                <div className="gov-form-group">
+                                    <label className="gov-form-label">Display Name *</label>
                                     <input
                                         type="text"
+                                        className="gov-form-input"
                                         value={newDisplayName}
                                         onChange={(e) => setNewDisplayName(e.target.value)}
                                         required
                                         placeholder="John Doe"
-                                        style={{ width: '100%', padding: '0.75rem', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }}
                                     />
                                 </div>
 
-                                <div>
-                                    <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
-                                        Discord ID (optional)
-                                    </label>
+                                <div className="gov-form-group">
+                                    <label className="gov-form-label">Discord ID (optional)</label>
                                     <input
                                         type="text"
+                                        className="gov-form-input"
                                         value={newDiscordId}
                                         onChange={(e) => setNewDiscordId(e.target.value)}
                                         placeholder="123456789012345678"
-                                        style={{ width: '100%', padding: '0.75rem', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }}
                                     />
                                 </div>
 
-                                <div>
-                                    <label style={{ color: '#94a3b8', fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem' }}>
-                                        Authority Level
-                                    </label>
+                                <div className="gov-form-group">
+                                    <label className="gov-form-label">Authority Level</label>
                                     <select
+                                        className="gov-form-input"
                                         value={newAuthorityLevel}
                                         onChange={(e) => setNewAuthorityLevel(parseInt(e.target.value))}
-                                        style={{ width: '100%', padding: '0.75rem', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#fff' }}
                                     >
                                         {Object.entries(AUTHORITY_NAMES).map(([level, name]) => (
                                             <option key={level} value={level}>{name}</option>
@@ -385,37 +319,28 @@ export default function UsersPage() {
                                     </select>
                                 </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div className="gov-form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                     <input
                                         type="checkbox"
                                         checked={createMailbox}
                                         onChange={(e) => setCreateMailbox(e.target.checked)}
                                         id="createMailbox"
-                                        style={{ width: '1rem', height: '1rem' }}
                                     />
-                                    <label htmlFor="createMailbox" style={{ color: '#fff', fontSize: '0.875rem' }}>
-                                        Create mailbox in Mail-in-a-box
+                                    <label htmlFor="createMailbox" style={{ color: 'var(--gov-gray-dark)', fontSize: '0.875rem', margin: 0 }}>
+                                        Create mailbox in Mail-in-a-Box
                                     </label>
                                 </div>
-                            </div>
 
-                            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
-                                <button
-                                    type="button"
-                                    onClick={() => { setShowCreateModal(false); resetForm(); }}
-                                    style={{ padding: '0.75rem 1.5rem', background: 'transparent', border: '1px solid #334155', borderRadius: '8px', color: '#94a3b8', cursor: 'pointer' }}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={creating}
-                                    style={{ padding: '0.75rem 1.5rem', background: '#3b82f6', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: '600' }}
-                                >
-                                    {creating ? 'Creating...' : 'Create User'}
-                                </button>
-                            </div>
-                        </form>
+                                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '1.5rem' }}>
+                                    <button type="button" onClick={() => { setShowCreateModal(false); resetForm(); }} className="gov-btn gov-btn-secondary">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" disabled={creating} className="gov-btn gov-btn-primary">
+                                        {creating ? 'Creating...' : 'Create User'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             )}

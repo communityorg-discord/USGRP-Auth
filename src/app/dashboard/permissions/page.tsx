@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 interface User {
     id: string;
@@ -50,7 +49,6 @@ export default function PermissionsPage() {
     useEffect(() => {
         async function load() {
             try {
-                // Check auth
                 const sessionRes = await fetch('/api/auth/session');
                 const sessionData = await sessionRes.json();
 
@@ -59,7 +57,6 @@ export default function PermissionsPage() {
                     return;
                 }
 
-                // Check authority level (SUPERUSER+ only)
                 if (sessionData.user.authorityLevel < 5) {
                     router.push('/dashboard?error=Insufficient permissions');
                     return;
@@ -67,7 +64,6 @@ export default function PermissionsPage() {
 
                 setCurrentUser(sessionData.user);
 
-                // Load users
                 const usersRes = await fetch('/api/users');
                 if (usersRes.ok) {
                     const usersData = await usersRes.json();
@@ -91,10 +87,8 @@ export default function PermissionsPage() {
     }
 
     function togglePermission(key: string) {
-        setEditedPermissions(prev =>
-            prev.includes(key)
-                ? prev.filter(p => p !== key)
-                : [...prev, key]
+        setEditedPermissions((prev) =>
+            prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
         );
     }
 
@@ -118,12 +112,10 @@ export default function PermissionsPage() {
 
             if (res.ok) {
                 setMessage('Permissions updated successfully!');
-                // Refresh users list
                 const usersRes = await fetch('/api/users');
                 if (usersRes.ok) {
                     const usersData = await usersRes.json();
                     setUsers(usersData.users);
-                    // Update selected user
                     const updated = usersData.users.find((u: User) => u.id === selectedUser.id);
                     if (updated) setSelectedUser(updated);
                 }
@@ -140,129 +132,114 @@ export default function PermissionsPage() {
 
     if (loading) {
         return (
-            <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ color: '#64748b' }}>Loading...</div>
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--gov-gray)' }}>
+                Loading permissions...
             </div>
         );
     }
 
     return (
-        <div style={{ minHeight: '100vh', background: '#0f172a', color: '#e2e8f0', padding: '2rem' }}>
-            {/* Header */}
-            <div style={{ marginBottom: '2rem' }}>
-                <Link href="/dashboard" style={{ color: '#64748b', textDecoration: 'none', marginBottom: '1rem', display: 'inline-block' }}>
-                    ← Back to Dashboard
-                </Link>
-                <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>Permissions Management</h1>
-                <p style={{ color: '#64748b', marginTop: '0.5rem' }}>Manage user authority levels and granular permissions (SUPERUSER+ only)</p>
+        <div>
+            {/* Page Header */}
+            <div className="gov-page-header">
+                <h1 className="gov-page-title">Permissions Management</h1>
+                <p className="gov-page-subtitle">Manage user authority levels and granular permissions (SUPERUSER+ only)</p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>
-                {/* Users List */}
-                <div style={{
-                    background: '#1e293b',
-                    borderRadius: '0.75rem',
-                    padding: '1rem',
-                    border: '1px solid #334155',
-                    maxHeight: '80vh',
-                    overflowY: 'auto'
-                }}>
-                    <h2 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem' }}>Users</h2>
+            <div className="gov-alert gov-alert-warning">
+                <strong>⚠️ Sensitive Area:</strong> Changes to permissions take effect immediately.
+                Users cannot be granted higher authority than your own level.
+            </div>
 
-                    {users.map(user => (
-                        <div
-                            key={user.id}
-                            onClick={() => selectUser(user)}
-                            style={{
-                                padding: '0.75rem 1rem',
-                                background: selectedUser?.id === user.id ? '#334155' : 'transparent',
-                                borderRadius: '0.5rem',
-                                cursor: 'pointer',
-                                marginBottom: '0.25rem',
-                                border: selectedUser?.id === user.id ? '1px solid #3b82f6' : '1px solid transparent',
-                            }}
-                        >
-                            <div style={{ fontWeight: 500, marginBottom: '0.25rem' }}>{user.displayName}</div>
-                            <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{user.email}</div>
-                            <div style={{ marginTop: '0.25rem' }}>
-                                <span style={{
-                                    padding: '0.125rem 0.5rem',
-                                    background: '#3b82f620',
-                                    color: '#3b82f6',
-                                    borderRadius: '9999px',
-                                    fontSize: '0.7rem',
-                                }}>
-                                    {AUTHORITY_LEVELS.find(l => l.value === user.authorityLevel)?.name || 'User'}
-                                </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '1.5rem' }}>
+                {/* User List */}
+                <div className="gov-card" style={{ maxHeight: 'calc(100vh - 250px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    <div className="gov-card-header">
+                        <h2 className="gov-card-title">Select User</h2>
+                    </div>
+                    <div className="gov-card-body" style={{ padding: 0, overflow: 'auto', flex: 1 }}>
+                        {users.map((user) => (
+                            <div
+                                key={user.id}
+                                onClick={() => selectUser(user)}
+                                style={{
+                                    padding: '0.75rem 1rem',
+                                    cursor: 'pointer',
+                                    borderBottom: '1px solid var(--gov-gray-lighter)',
+                                    background: selectedUser?.id === user.id ? 'var(--gov-gray-lightest)' : 'transparent',
+                                    borderLeft: selectedUser?.id === user.id ? '3px solid var(--gov-blue)' : '3px solid transparent',
+                                }}
+                            >
+                                <div style={{ fontWeight: 600, color: 'var(--gov-gray-dark)' }}>{user.displayName}</div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--gov-gray)' }}>{user.email}</div>
+                                <div style={{ marginTop: '0.25rem' }}>
+                                    <span className="gov-badge gov-badge-blue" style={{ fontSize: '0.625rem' }}>
+                                        {AUTHORITY_LEVELS.find((l) => l.value === user.authorityLevel)?.name || 'User'}
+                                    </span>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
 
                 {/* Permissions Editor */}
-                <div style={{
-                    background: '#1e293b',
-                    borderRadius: '0.75rem',
-                    padding: '1.5rem',
-                    border: '1px solid #334155'
-                }}>
+                <div className="gov-card">
                     {selectedUser ? (
                         <>
-                            <div style={{ marginBottom: '1.5rem' }}>
-                                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{selectedUser.displayName}</h2>
-                                <p style={{ color: '#64748b', margin: '0.25rem 0', fontFamily: 'monospace' }}>{selectedUser.email}</p>
+                            <div className="gov-card-header">
+                                <h2 className="gov-card-title">{selectedUser.displayName}</h2>
                             </div>
+                            <div className="gov-card-body">
+                                <p style={{ color: 'var(--gov-gray)', marginBottom: '1.5rem', fontFamily: 'monospace' }}>
+                                    {selectedUser.email}
+                                </p>
 
-                            {message && (
-                                <div style={{ padding: '0.75rem 1rem', background: '#22c55e20', color: '#22c55e', borderRadius: '0.5rem', marginBottom: '1rem' }}>
-                                    ✓ {message}
-                                </div>
-                            )}
-                            {error && (
-                                <div style={{ padding: '0.75rem 1rem', background: '#ef444420', color: '#ef4444', borderRadius: '0.5rem', marginBottom: '1rem' }}>
-                                    {error}
-                                </div>
-                            )}
+                                {message && <div className="gov-alert gov-alert-success">{message}</div>}
+                                {error && <div className="gov-alert gov-alert-error">{error}</div>}
 
-                            {/* Authority Level */}
-                            <div style={{ marginBottom: '2rem' }}>
-                                <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem' }}>Authority Level</h3>
-                                <div style={{ display: 'grid', gap: '0.5rem' }}>
-                                    {AUTHORITY_LEVELS.map(level => (
-                                        <label
-                                            key={level.value}
-                                            style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.75rem',
-                                                padding: '0.75rem 1rem',
-                                                background: editedLevel === level.value ? '#3b82f620' : '#0f172a',
-                                                border: editedLevel === level.value ? '1px solid #3b82f6' : '1px solid #334155',
-                                                borderRadius: '0.5rem',
-                                                cursor: currentUser.authorityLevel > level.value || level.value === editedLevel ? 'pointer' : 'not-allowed',
-                                                opacity: currentUser.authorityLevel > level.value || level.value === editedLevel ? 1 : 0.5,
-                                            }}
-                                        >
-                                            <input
-                                                type="radio"
-                                                checked={editedLevel === level.value}
-                                                onChange={() => setEditedLevel(level.value)}
-                                                disabled={currentUser.authorityLevel <= level.value && level.value !== editedLevel}
-                                            />
-                                            <div>
-                                                <div style={{ fontWeight: 500 }}>{level.name}</div>
-                                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{level.description}</div>
-                                            </div>
-                                        </label>
-                                    ))}
+                                {/* Authority Level */}
+                                <h3 style={{ margin: '0 0 1rem', color: 'var(--gov-gray-dark)', fontSize: '1rem' }}>
+                                    Authority Level
+                                </h3>
+                                <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '2rem' }}>
+                                    {AUTHORITY_LEVELS.map((level) => {
+                                        const canSelect = currentUser.authorityLevel > level.value || level.value === editedLevel;
+                                        return (
+                                            <label
+                                                key={level.value}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.75rem',
+                                                    padding: '0.75rem 1rem',
+                                                    background: editedLevel === level.value ? 'rgba(0, 113, 188, 0.08)' : 'var(--gov-gray-lightest)',
+                                                    border: editedLevel === level.value ? '2px solid var(--gov-blue)' : '1px solid var(--gov-gray-lighter)',
+                                                    borderRadius: '4px',
+                                                    cursor: canSelect ? 'pointer' : 'not-allowed',
+                                                    opacity: canSelect ? 1 : 0.5,
+                                                }}
+                                            >
+                                                <input
+                                                    type="radio"
+                                                    checked={editedLevel === level.value}
+                                                    onChange={() => setEditedLevel(level.value)}
+                                                    disabled={!canSelect}
+                                                />
+                                                <div>
+                                                    <div style={{ fontWeight: 600, color: 'var(--gov-gray-dark)' }}>{level.name}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--gov-gray)' }}>{level.description}</div>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
                                 </div>
-                            </div>
 
-                            {/* Granular Permissions */}
-                            <div style={{ marginBottom: '2rem' }}>
-                                <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem' }}>Granular Permissions</h3>
-                                <div style={{ display: 'grid', gap: '0.5rem' }}>
-                                    {AVAILABLE_PERMISSIONS.map(perm => (
+                                {/* Granular Permissions */}
+                                <h3 style={{ margin: '0 0 1rem', color: 'var(--gov-gray-dark)', fontSize: '1rem' }}>
+                                    Granular Permissions
+                                </h3>
+                                <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                                    {AVAILABLE_PERMISSIONS.map((perm) => (
                                         <label
                                             key={perm.key}
                                             style={{
@@ -270,9 +247,9 @@ export default function PermissionsPage() {
                                                 alignItems: 'center',
                                                 gap: '0.75rem',
                                                 padding: '0.75rem 1rem',
-                                                background: editedPermissions.includes(perm.key) ? '#22c55e20' : '#0f172a',
-                                                border: editedPermissions.includes(perm.key) ? '1px solid #22c55e' : '1px solid #334155',
-                                                borderRadius: '0.5rem',
+                                                background: editedPermissions.includes(perm.key) ? 'rgba(46, 133, 64, 0.08)' : 'var(--gov-gray-lightest)',
+                                                border: editedPermissions.includes(perm.key) ? '2px solid var(--gov-green)' : '1px solid var(--gov-gray-lighter)',
+                                                borderRadius: '4px',
                                                 cursor: 'pointer',
                                             }}
                                         >
@@ -281,37 +258,26 @@ export default function PermissionsPage() {
                                                 checked={editedPermissions.includes(perm.key)}
                                                 onChange={() => togglePermission(perm.key)}
                                             />
-                                            <div>
-                                                <div style={{ fontWeight: 500 }}>{perm.name}</div>
-                                                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{perm.description}</div>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontWeight: 600, color: 'var(--gov-gray-dark)' }}>{perm.name}</div>
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--gov-gray)' }}>{perm.description}</div>
                                             </div>
-                                            <code style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#64748b' }}>{perm.key}</code>
+                                            <code style={{ fontSize: '0.6875rem', color: 'var(--gov-gray)', background: 'var(--gov-gray-lighter)', padding: '0.125rem 0.375rem', borderRadius: '3px' }}>
+                                                {perm.key}
+                                            </code>
                                         </label>
                                     ))}
                                 </div>
-                            </div>
 
-                            {/* Save Button */}
-                            <button
-                                onClick={saveChanges}
-                                disabled={saving}
-                                style={{
-                                    padding: '0.75rem 2rem',
-                                    background: saving ? '#334155' : '#3b82f6',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '0.5rem',
-                                    cursor: saving ? 'not-allowed' : 'pointer',
-                                    fontWeight: 500,
-                                    fontSize: '1rem',
-                                }}
-                            >
-                                {saving ? 'Saving...' : 'Save Changes'}
-                            </button>
+                                <button onClick={saveChanges} disabled={saving} className="gov-btn gov-btn-primary">
+                                    {saving ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </div>
                         </>
                     ) : (
-                        <div style={{ color: '#64748b', textAlign: 'center', padding: '3rem' }}>
-                            Select a user to manage their permissions
+                        <div className="gov-card-body" style={{ textAlign: 'center', padding: '4rem', color: 'var(--gov-gray)' }}>
+                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>👈</div>
+                            <p>Select a user from the list to manage their permissions</p>
                         </div>
                     )}
                 </div>
