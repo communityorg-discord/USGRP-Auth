@@ -13,7 +13,7 @@ import {
     createSession,
     getSessionByTokenHash,
     deleteSession,
-    deleteUserSessions,
+    deleteAllUserSessions,
     logAudit,
     type User
 } from './db';
@@ -204,6 +204,7 @@ export async function login(
         token_hash: tokenHash,
         ip,
         user_agent: userAgent,
+        is_remembered: rememberMe ? 1 : 0,
         expires_at: expiresAt,
     });
 
@@ -252,7 +253,7 @@ export async function logout(token: string, ip: string | null): Promise<boolean>
 
 // Logout all sessions for a user
 export async function logoutAll(userId: string, ip: string | null): Promise<number> {
-    const count = deleteUserSessions(userId);
+    const count = deleteAllUserSessions(userId);
     logAudit(userId, 'LOGOUT_ALL', null, `Logged out ${count} sessions`, ip);
     return count;
 }

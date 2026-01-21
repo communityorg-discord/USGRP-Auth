@@ -235,12 +235,12 @@ export interface AuditLogEntry {
 }
 
 // User operations
-export function createUser(user: Omit<User, 'created_at' | 'updated_at'>): User | null {
+export function createUser(user: Omit<User, 'created_at' | 'updated_at' | 'suspended' | 'suspended_reason' | 'suspended_at' | 'suspended_by' | 'mfa_enforced' | 'recovery_codes' | 'backup_email'> & { suspended?: number; mfa_enforced?: number }): User | null {
     try {
         const stmt = getDb().prepare(`
             INSERT INTO users (id, email, password_hash, discord_id, display_name, 
-                authority_level, roles, permissions, enabled, totp_secret, totp_enabled)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                authority_level, roles, permissions, enabled, suspended, mfa_enforced, totp_secret, totp_enabled)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         stmt.run(
             user.id,
@@ -252,6 +252,8 @@ export function createUser(user: Omit<User, 'created_at' | 'updated_at'>): User 
             user.roles,
             user.permissions,
             user.enabled,
+            user.suspended || 0,
+            user.mfa_enforced ?? 1,  // Default to MFA enforced
             user.totp_secret,
             user.totp_enabled
         );
@@ -328,11 +330,16 @@ export function enableUser(id: string): boolean {
 }
 
 // Session operations
-export function createSession(session: Omit<Session, 'created_at'>): Session | null {
+type CreateSessionInput = Omit<Session, 'created_at' | 'last_active' | 'device_name' | 'device_fingerprint' | 'is_remembered'> & {
+    device_name?: string | null;
+    device_fingerprint?: string | null;
+    is_remembered?: number;
+};
+export function createSession(session: CreateSessionInput): Session | null {
     try {
         const stmt = getDb().prepare(`
-            INSERT INTO sessions (id, user_id, token_hash, ip, user_agent, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO sessions (id, user_id, token_hash, ip, user_agent, device_name, device_fingerprint, last_active, is_remembered, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?)
         `);
         stmt.run(
             session.id,
@@ -340,6 +347,9 @@ export function createSession(session: Omit<Session, 'created_at'>): Session | n
             session.token_hash,
             session.ip,
             session.user_agent,
+            session.device_name || null,
+            session.device_fingerprint || null,
+            session.is_remembered || 0,
             session.expires_at
         );
         return getSessionById(session.id);
