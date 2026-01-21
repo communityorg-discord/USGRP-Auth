@@ -327,7 +327,6 @@ export function getAuditLog(limit = 100, offset = 0): AuditLogEntry[] {
     `);
     return stmt.all(limit, offset) as AuditLogEntry[];
 }
-}
 
 export function getAuditLogByUser(userId: string, limit = 50): AuditLogEntry[] {
     const stmt = getDb().prepare(`
