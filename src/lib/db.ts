@@ -317,11 +317,16 @@ export function logAudit(
 
 export function getAuditLog(limit = 100, offset = 0): AuditLogEntry[] {
     const stmt = getDb().prepare(`
-        SELECT * FROM audit_log 
-        ORDER BY created_at DESC 
+        SELECT 
+            a.id, a.user_id, a.action, a.target_user, a.details, a.ip_address, a.created_at,
+            u.display_name, u.email
+        FROM audit_log a
+        LEFT JOIN users u ON a.user_id = u.id
+        ORDER BY a.created_at DESC 
         LIMIT ? OFFSET ?
     `);
     return stmt.all(limit, offset) as AuditLogEntry[];
+}
 }
 
 export function getAuditLogByUser(userId: string, limit = 50): AuditLogEntry[] {

@@ -201,8 +201,8 @@ export default function UsersPage() {
                             </thead>
                             <tbody>
                                 {users.map((u) => (
-                                    <tr key={u.id}>
-                                        <td style={{ fontWeight: 600 }}>{u.displayName}</td>
+                                    <tr key={u.id} onClick={() => router.push(`/dashboard/users/${u.id}`)} style={{ cursor: 'pointer' }}>
+                                        <td style={{ fontWeight: 600, color: 'var(--gov-blue)' }}>{u.displayName}</td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>{u.email}</td>
                                         <td style={{ color: u.discordId ? 'var(--gov-gray-dark)' : 'var(--gov-gray-light)', fontFamily: 'monospace', fontSize: '0.8125rem' }}>
                                             {u.discordId || 'Not linked'}
@@ -223,7 +223,7 @@ export default function UsersPage() {
                                             </span>
                                         </td>
                                         <td>
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
                                                 <button onClick={() => router.push(`/dashboard/users/${u.id}`)} className="gov-btn gov-btn-secondary" style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}>
                                                     Edit
                                                 </button>

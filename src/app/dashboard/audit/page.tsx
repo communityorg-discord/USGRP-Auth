@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 
 interface AuditLog {
     id: string;
-    userId: string;
+    user_id: string;
     action: string;
-    targetUser: string | null;
+    target_user: string | null;
     details: string | null;
-    ipAddress: string | null;
-    createdAt: string;
-    displayName?: string;
+    ip_address: string | null;
+    created_at: string;
+    display_name?: string;
     email?: string;
 }
 
@@ -80,9 +80,9 @@ export default function AuditPage() {
             const searchLower = search.toLowerCase();
             return (
                 log.email?.toLowerCase().includes(searchLower) ||
-                log.displayName?.toLowerCase().includes(searchLower) ||
+                log.display_name?.toLowerCase().includes(searchLower) ||
                 log.action.toLowerCase().includes(searchLower) ||
-                log.targetUser?.toLowerCase().includes(searchLower) ||
+                log.target_user?.toLowerCase().includes(searchLower) ||
                 log.details?.toLowerCase().includes(searchLower)
             );
         }
@@ -177,10 +177,10 @@ export default function AuditPage() {
                                 {filteredLogs.map((log) => (
                                     <tr key={log.id}>
                                         <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
-                                            {formatDate(log.createdAt)}
+                                            {formatDate(log.created_at)}
                                         </td>
                                         <td>
-                                            <div style={{ fontWeight: 600 }}>{log.displayName || 'Unknown'}</div>
+                                            <div style={{ fontWeight: 600 }}>{log.display_name || 'Unknown'}</div>
                                             <div style={{ fontSize: '0.75rem', color: 'var(--gov-gray)' }}>{log.email}</div>
                                         </td>
                                         <td>
@@ -190,10 +190,10 @@ export default function AuditPage() {
                                             </span>
                                         </td>
                                         <td style={{ color: 'var(--gov-gray)', fontSize: '0.875rem' }}>
-                                            {log.targetUser || log.details || '-'}
+                                            {log.target_user || log.details || '-'}
                                         </td>
                                         <td style={{ fontFamily: 'monospace', fontSize: '0.8125rem' }}>
-                                            {log.ipAddress || '-'}
+                                            {log.ip_address || '-'}
                                         </td>
                                     </tr>
                                 ))}
