@@ -44,9 +44,16 @@ export async function GET() {
         const miabResult = await getMailUsers();
         const mailboxes = miabResult.ok ? (miabResult.users || []) : [];
 
-        // Merge data
+        // Debug logging
+        console.log('MIAB Result:', miabResult.ok ? `Found ${mailboxes.length} mailboxes` : miabResult.error);
+        if (mailboxes.length > 0) {
+            console.log('Mailbox emails:', mailboxes.map(m => m.email));
+        }
+
+        // Merge data - use case-insensitive email matching
         const users = authUsers.map((u: User) => {
-            const mailbox = mailboxes.find((m: MailUser) => m.email === u.email);
+            const userEmail = u.email.toLowerCase();
+            const mailbox = mailboxes.find((m: MailUser) => m.email.toLowerCase() === userEmail);
             return {
                 id: u.id,
                 email: u.email,
